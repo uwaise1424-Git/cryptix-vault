@@ -1,4 +1,71 @@
-// cryptoEngine.js - Core Cryptography Module for Cryptix Vault
+// cryptoEngine.js - Core Cryptography & Auth Module for Cryptix Vault
+
+// ==========================================
+// 1. IDENTITY & ACCESS MANAGEMENT (COGNITO)
+// ==========================================
+
+// Initialize Cognito Pool
+const poolData = {
+    UserPoolId: 'YOUR_USER_POOL_ID', // <--- Paste your actual User Pool ID here
+    ClientId: '6u8c7uhsr844uqc6bfqe4q0oab' 
+};
+const userPool = new AmazonCognitoIdentity.CognitoUserPool(poolData);
+
+/**
+ * Registers a new user via Amazon Cognito
+ */
+function register() {
+    const email = document.getElementById('emailInput').value;
+    const password = document.getElementById('passwordInput').value;
+
+    const attributeList = [
+        new AmazonCognitoIdentity.CognitoUserAttribute({ Name: 'email', Value: email })
+    ];
+
+    userPool.signUp(email, password, attributeList, null, (err, result) => {
+        if (err) {
+            alert(err.message || JSON.stringify(err));
+            return;
+        }
+        alert('Success! Check your email for a verification code, or confirm the user manually in the AWS Console.');
+    });
+}
+
+/**
+ * Logs in a user and securely stores the JWT Token
+ */
+function login() {
+    const email = document.getElementById('emailInput').value;
+    const password = document.getElementById('passwordInput').value;
+
+    const authenticationDetails = new AmazonCognitoIdentity.AuthenticationDetails({
+        Username: email,
+        Password: password,
+    });
+    
+    const cognitoUser = new AmazonCognitoIdentity.CognitoUser({
+        Username: email,
+        Pool: userPool
+    });
+
+    cognitoUser.authenticateUser(authenticationDetails, {
+        onSuccess: function(result) {
+            const jwtToken = result.getIdToken().getJwtToken();
+            console.log("Vault Unlocked! JWT obtained.");
+            
+            // Store token for authenticating AWS backend requests
+            localStorage.setItem('vaultToken', jwtToken);
+            alert("Login Successful! You now have access to the vault.");
+        },
+        onFailure: function(err) {
+            alert(err.message || JSON.stringify(err));
+        },
+    });
+}
+
+// ==========================================
+// 2. ZERO-KNOWLEDGE CRYPTOGRAPHY (AES-GCM)
+// ==========================================
 
 /**
  * Derives a secure AES-256 key from a plain text passphrase using PBKDF2
@@ -31,21 +98,17 @@ async function getCryptoKey(passphrase, salt) {
  * Encrypts a file buffer for upload
  */
 async function encryptFileBuffer(fileBuffer, passphrase) {
-    // Generate random Salt and Initialization Vector (IV) for maximum security
     const salt = window.crypto.getRandomValues(new Uint8Array(16));
     const iv = window.crypto.getRandomValues(new Uint8Array(12));
     
-    // Generate the cryptographic key using the passphrase and salt
     const key = await getCryptoKey(passphrase, salt);
 
-    // Encrypt the file
     const encryptedContent = await window.crypto.subtle.encrypt(
         { name: "AES-GCM", iv: iv },
         key,
         fileBuffer
     );
 
-    // Package the Salt, IV, and Ciphertext together into one single blob
     const encryptedBytes = new Uint8Array(encryptedContent);
     const payload = new Uint8Array(salt.length + iv.length + encryptedBytes.length);
     
@@ -62,15 +125,12 @@ async function encryptFileBuffer(fileBuffer, passphrase) {
 async function decryptFileBuffer(encryptedBuffer, passphrase) {
     const payload = new Uint8Array(encryptedBuffer);
     
-    // Unpack the Salt, IV, and Ciphertext from the downloaded blob
     const salt = payload.slice(0, 16);
     const iv = payload.slice(16, 28);
     const ciphertext = payload.slice(28);
 
-    // Reconstruct the exact same cryptographic key using the passphrase and extracted salt
     const key = await getCryptoKey(passphrase, salt);
 
-    // Decrypt the file
     const decryptedContent = await window.crypto.subtle.decrypt(
         { name: "AES-GCM", iv: iv },
         key,
