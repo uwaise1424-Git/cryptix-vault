@@ -1,70 +1,7 @@
-// cryptoEngine.js - Core Cryptography & Auth Module for Cryptix Vault
+// cryptoEngine.js - Core Cryptography Module for Cryptix Vault
 
 // ==========================================
-// 1. IDENTITY & ACCESS MANAGEMENT (COGNITO)
-// ==========================================
-
-// Initialize Cognito Pool
-const poolData = {
-    UserPoolId: 'YOUR_USER_POOL_ID', // <--- Paste your actual User Pool ID here
-    ClientId: '6u8c7uhsr844uqc6bfqe4q0oab' 
-};
-const userPool = new AmazonCognitoIdentity.CognitoUserPool(poolData);
-
-/**
- * Registers a new user via Amazon Cognito
- */
-function register() {
-    const email = document.getElementById('emailInput').value;
-    const password = document.getElementById('passwordInput').value;
-
-    const attributeList = [
-        new AmazonCognitoIdentity.CognitoUserAttribute({ Name: 'email', Value: email })
-    ];
-
-    userPool.signUp(email, password, attributeList, null, (err, result) => {
-        if (err) {
-            alert(err.message || JSON.stringify(err));
-            return;
-        }
-        alert('Success! Check your email for a verification code, or confirm the user manually in the AWS Console.');
-    });
-}
-
-/**
- * Logs in a user and securely stores the JWT Token
- */
-function login() {
-    const email = document.getElementById('emailInput').value;
-    const password = document.getElementById('passwordInput').value;
-
-    const authenticationDetails = new AmazonCognitoIdentity.AuthenticationDetails({
-        Username: email,
-        Password: password,
-    });
-    
-    const cognitoUser = new AmazonCognitoIdentity.CognitoUser({
-        Username: email,
-        Pool: userPool
-    });
-
-    cognitoUser.authenticateUser(authenticationDetails, {
-        onSuccess: function(result) {
-            const jwtToken = result.getIdToken().getJwtToken();
-            console.log("Vault Unlocked! JWT obtained.");
-            
-            // Store token for authenticating AWS backend requests
-            localStorage.setItem('vaultToken', jwtToken);
-            alert("Login Successful! You now have access to the vault.");
-        },
-        onFailure: function(err) {
-            alert(err.message || JSON.stringify(err));
-        },
-    });
-}
-
-// ==========================================
-// 2. ZERO-KNOWLEDGE CRYPTOGRAPHY (AES-GCM)
+// ZERO-KNOWLEDGE CRYPTOGRAPHY (AES-GCM)
 // ==========================================
 
 /**
