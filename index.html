@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Cryptix — Zero-Trust Secure File Vault</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/amazon-cognito-identity-js@3.2.1/dist/amazon-cognito-identity.min.js"></script>
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col items-center justify-center p-6 font-sans">
 
@@ -50,13 +49,6 @@
             <div id="status" class="text-xs font-mono text-slate-300 break-all leading-relaxed">Status: Ready.</div>
         </div>
     </div>
-    <div id="auth-section">
-    <h2>Vault Login</h2>
-    <input type="email" id="emailInput" placeholder="Email Address">
-    <input type="password" id="passwordInput" placeholder="Password">
-    <button onclick="register()">Sign Up</button>
-    <button onclick="login()">Log In</button>
-</div>
 
     <!-- Link the crypto engine -->
     <script src="cryptoEngine.js"></script>
@@ -102,7 +94,7 @@
         }
 
         async function handleDownload() {
-            const fileKey = document.getElementById('downloadFileKey').value.trim(); // .trim() removes accidental spaces!
+            const fileKey = document.getElementById('downloadFileKey').value.trim();
             const passphrase = document.getElementById('downloadPassphrase').value;
             const status = document.getElementById('status');
             
@@ -124,7 +116,6 @@
                 status.innerHTML = `<span class="text-cyan-400">☁️ [2/3] Downloading ciphertext from S3...</span>`;
                 const s3Response = await fetch(data.url);
                 
-                // NEW DIAGNOSTIC CHECK: Did AWS actually give us the file, or an error?
                 if (!s3Response.ok) {
                     const awsError = await s3Response.text();
                     console.error("AWS S3 Error:", awsError);
@@ -143,7 +134,6 @@
                 const a = document.createElement('a');
                 a.href = url;
                 
-                // Extract original filename from the S3 key (removes vault/ and UUID)
                 let originalName = fileKey.split('-').slice(5).join('-');
                 a.download = "DECRYPTED_" + (originalName.replace('.cryptix', '') || "secure_file");
                 
